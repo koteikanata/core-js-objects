@@ -164,8 +164,21 @@ function makeWord(lettersObject) {
  *    sellTickets([25, 25, 50]) => true
  *    sellTickets([25, 100]) => false (The seller does not have enough money to give change.)
  */
-function sellTickets(/* queue */) {
-  throw new Error('Not implemented');
+function sellTickets(queue) {
+  let till = 0;
+
+  for (let i = 0; i < queue.length; i += 1) {
+    const curr = queue[i];
+    if (curr === 25) {
+      till += 25;
+    }
+    if (till - curr < 0) {
+      return false;
+    }
+    till += 25;
+  }
+
+  return true;
 }
 
 /**
@@ -297,87 +310,120 @@ function group(array, keySelector, valueSelector) {
   return map;
 }
 
-/**
- * Css selectors builder
- *
- * Each complex selector can consists of type, id, class, attribute, pseudo-class
- * and pseudo-element selectors:
- *
- *    element#id.class[attr]:pseudoClass::pseudoElement
- *              \----/\----/\----------/
- *              Can be several occurrences
- *
- * All types of selectors can be combined using the combination ' ','+','~','>' .
- *
- * The task is to design a single class, independent classes or classes hierarchy
- * and implement the functionality to build the css selectors using the provided cssSelectorBuilder.
- * Each selector should have the stringify() method to output the string representation
- * according to css specification.
- *
- * Provided cssSelectorBuilder should be used as facade only to create your own classes,
- * for example the first method of cssSelectorBuilder can be like this:
- *   element: function(value) {
- *       return new MySuperBaseElementSelector(...)...
- *   },
- *
- * The design of class(es) is totally up to you, but try to make it as simple,
- * clear and readable as possible.
- *
- * @example
- *
- *  const builder = cssSelectorBuilder;
- *
- *  builder.id('main').class('container').class('editable').stringify()
- *    => '#main.container.editable'
- *
- *  builder.element('a').attr('href$=".png"').pseudoClass('focus').stringify()
- *    => 'a[href$=".png"]:focus'
- *
- *  builder.combine(
- *      builder.element('div').id('main').class('container').class('draggable'),
- *      '+',
- *      builder.combine(
- *          builder.element('table').id('data'),
- *          '~',
- *           builder.combine(
- *               builder.element('tr').pseudoClass('nth-of-type(even)'),
- *               ' ',
- *               builder.element('td').pseudoClass('nth-of-type(even)')
- *           )
- *      )
- *  ).stringify()
- *    => 'div#main.container.draggable + table#data ~ tr:nth-of-type(even)   td:nth-of-type(even)'
- *
- *  For more examples see unit tests.
- */
+class CssSelector {
+  constructor() {
+    this.parts = [];
+    this.usedParts = new Set();
+    this.correctOrder = [
+      'element',
+      'id',
+      'classes',
+      'attributes',
+      'pseudoClasses',
+      'pseudoElement',
+    ];
+  }
+
+  isAlreadyUsed(property) {
+    if (this.usedParts.has(property)) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+  }
+
+  isOrdered() {
+    const expectedOrder = this.correctOrder
+      .filter((part) => this.usedParts.has(part))
+      .join(',');
+    const actualOrder = [...this.usedParts].join(',');
+    if (expectedOrder !== actualOrder) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+  }
+
+  element(value) {
+    this.isAlreadyUsed('element');
+    this.parts.push(value);
+    this.usedParts.add('element');
+    this.isOrdered();
+    return this;
+  }
+
+  id(value) {
+    this.isAlreadyUsed('id');
+    this.parts.push(`#${value}`);
+    this.usedParts.add('id');
+    this.isOrdered();
+    return this;
+  }
+
+  class(value) {
+    this.parts.push(`.${value}`);
+    this.usedParts.add('classes');
+    this.isOrdered();
+    return this;
+  }
+
+  attr(value) {
+    this.parts.push(`[${value}]`);
+    this.usedParts.add('attributes');
+    this.isOrdered();
+    return this;
+  }
+
+  pseudoClass(value) {
+    this.parts.push(`:${value}`);
+    this.usedParts.add('pseudoClasses');
+    this.isOrdered();
+    return this;
+  }
+
+  pseudoElement(value) {
+    this.isAlreadyUsed('pseudoElement');
+    this.parts.push(`::${value}`);
+    this.usedParts.add('pseudoElement');
+    this.isOrdered();
+    return this;
+  }
+
+  stringify() {
+    const elementPart = this.parts.join('');
+    this.isOrdered();
+    return `${elementPart}`;
+  }
+}
 
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    return new CssSelector().element(value);
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return new CssSelector().id(value);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return new CssSelector().class(value);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return new CssSelector().attr(value);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return new CssSelector().pseudoClass(value);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return new CssSelector().pseudoElement(value);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    const combinedString = `${selector1.stringify()} ${combinator} ${selector2.stringify()}`;
+    return new CssSelector().element(combinedString);
   },
 };
 
